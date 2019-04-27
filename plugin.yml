@@ -1,0 +1,16 @@
+name: Assume Identity
+description: Changes an existing builds assigned user
+author: https://github.com/mgoodings
+requirements:
+  - curl
+  - jq
+configuration:
+  properties:
+    token:
+      type: string
+    label:
+      type: string
+  oneOf:
+    - required:
+      - token
+  additionalProperties: false

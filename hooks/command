@@ -1,0 +1,46 @@
+#!/bin/bash
+set -ueo pipefail
+
+DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
+
+# shellcheck source=lib/shared.bash
+. "$DIR/../lib/shared.bash"
+
+debug_mode='off'
+if [[ "$(plugin_read_config DEBUG)" =~ (true|on|1) ]] ; then
+  echo "--- :hammer: Enabling debug mode"
+  debug_mode='on'
+fi
+
+token="$(plugin_read_config TOKEN)"
+label="$(plugin_read_config LABEL ":cop: Halt! Identify!")"
+
+if [ -z "$token" ] ; then
+  echo "+++ Identity plugin error"
+  echo "Could not find an api token"
+  exit 1
+fi
+
+echo "+++ Generating pipeline"
+
+pipeline="$(generate_pipeline "$label")"
+
+if [[ "${debug_mode:-off}" =~ (on) ]]; then
+  echo "$pipeline" >&2
+else
+  echo "$pipeline" | buildkite-agent pipeline upload
+
+  echo "--- Finding blocked job"
+
+  job_id="$(find_blocked_job_id_with_label "$token" "$label")"
+
+  if [ -z "$job_id" ]; then
+    echo "+++ Identity plugin error"
+    echo "Could not find the blocked job with label '$label'"
+    exit 2
+  fi
+
+  echo "--- Unblocking job with id: $job_id"
+
+  unblock_job_by_id "$token" "$job_id"
+fi
